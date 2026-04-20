@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ZELLPAY - Digital Payment Service</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Courier+Prime:wght@400;700&family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: #f1f5f9;
+        }
+
+        .receipt-font {
+            font-family: 'Courier Prime', monospace;
+        }
+
+        @media print {
+            .no-print { display: none !important; }
+            body { background: white !important; padding: 0 !important; }
+            #receipt-preview { 
+                box-shadow: none !important; 
+                border: none !important;
+                width: 80mm !important;
+                padding: 5mm !important;
+            }
+        }
+
+        .receipt-container {
+            width: 85mm;
+            background: white;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+            padding: 24px;
+            border: 1px solid #e2e8f0;
+            margin: auto;
+        }
+
+        .dashed-line {
+            border-top: 1px dashed #000;
+            margin: 10px 0;
+            opacity: 0.4;
+        }
+
+        .logo-box {
+            background: #000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 16px;
+            width: 64px;
+            height: 64px;
+            margin: 0 auto 12px;
+        }
+
+        .loader {
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid #3498db;
+            border-radius: 50%;
+            width: 16px;
+            height: 16px;
+            animation: spin 1s linear infinite;
+            display: none;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body class="p-4 md:p-8">
+
+    <div class="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-10 no-print">
+        
+        <!-- Panel Input Otomatis -->
+        <div class="space-y-6">
+            <div class="bg-white p-8 rounded-[2.5rem] shadow-xl border border-white/50">
+                <div class="flex items-center gap-4 mb-8">
+                    <div class="bg-black p-2 rounded-xl text-white shadow-lg">
+                        <svg width="32" height="32" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M35 25C40 20 60 20 65 25" stroke="white" stroke-width="6" stroke-linecap="round"/>
+                            <path d="M25 15C35 5 65 5 75 15" stroke="white" stroke-width="6" stroke-linecap="round"/>
+                            <path d="M25 40H75L25 85H75" stroke="white" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <h1 class="text-2xl font-black tracking-tight uppercase">ZELLPAY</h1>
+                        <p class="text-slate-400 text-[10px] font-bold uppercase tracking-widest">Otomatisasi Struk Digital</p>
+                    </div>
+                </div>
+
+                <div class="space-y-6">
+                    <!-- Info Otomatis (Hanya Baca) -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                            <label class="text-[10px] font-bold text-slate-400 uppercase block mb-1">No. Transaksi Baru</label>
+                            <span id="displayTrxId" class="font-black text-blue-600">ZP-GENERATING...</span>
+                        </div>
+                        <div class="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                            <label class="text-[10px] font-bold text-slate-400 uppercase block mb-1">Waktu Sistem</label>
+                            <span id="displayTime" class="font-bold text-slate-700">--:--:--</span>
+                        </div>
+                    </div>
+
+                    <div class="pt-2">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="text-xs font-black text-slate-800 uppercase tracking-widest">Input Layanan</h3>
+                            <button onclick="addItem()" class="bg-blue-50 text-blue-600 px-4 py-2 rounded-xl font-bold text-[10px] hover:bg-blue-100 transition flex items-center gap-2">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                                TAMBAH LAYANAN
+                            </button>
+                        </div>
+                        <div id="items-container" class="space-y-2 max-h-[300px] overflow-y-auto pr-1"></div>
+                    </div>
+
+                    <div class="pt-6 grid grid-cols-1 gap-3">
+                        <button onclick="downloadAsImage()" id="downloadBtn" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-4 rounded-2xl font-bold shadow-xl shadow-blue-200 transition-all active:scale-[0.98] flex justify-center items-center gap-3">
+                            <div class="loader" id="btnLoader"></div>
+                            <span id="btnText">SIMPAN & BAGIKAN (PNG)</span>
+                        </button>
+                        <button onclick="generateNewID(); renderForm();" class="w-full bg-slate-100 hover:bg-slate-200 text-slate-600 py-3 rounded-2xl font-bold transition-all text-sm">
+                            RE-GENERATE ID BARU
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Preview Struk Digital -->
+        <div id="receipt-wrapper" class="flex justify-center items-start pt-4">
+            <div id="receipt-preview" class="receipt-container receipt-font text-black text-[11px] leading-tight">
+                
+                <div class="text-center mb-4">
+                    <div class="logo-box">
+                        <svg width="45" height="45" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M35 25C40 20 60 20 65 25" stroke="white" stroke-width="5" stroke-linecap="round"/>
+                            <path d="M25 15C35 5 65 5 75 15" stroke="white" stroke-width="5" stroke-linecap="round"/>
+                            <path d="M25 40H75L25 85H75" stroke="white" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </div>
+                    <h1 class="text-2xl font-bold tracking-tighter">ZELLPAY</h1>
+                    <p class="text-[9px] font-bold tracking-[0.2em] uppercase opacity-80">Digital Payment Service</p>
+                </div>
+
+                <div class="dashed-line"></div>
+
+                <!-- Info Header (Auto-Generated) -->
+                <div class="space-y-0.5">
+                    <div class="flex justify-between">
+                        <span>NO. TRX  :</span>
+                        <span id="prevTrxId" class="font-bold text-right"></span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span>TANGGAL  :</span>
+                        <span id="prevDate" class="text-right"></span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span>WAKTU    :</span>
+                        <span id="prevTime" class="text-right"></span>
+                    </div>
+                </div>
+
+                <div class="dashed-line"></div>
+
+                <div id="prevItems" class="space-y-1.5 min-h-[60px]"></div>
+
+                <div class="dashed-line"></div>
+
+                <div class="flex justify-between font-bold text-sm py-1">
+                    <span>TOTAL BAYAR</span>
+                    <span id="prevTotal"></span>
+                </div>
+
+                <div class="dashed-line"></div>
+
+                <div class="mt-4 space-y-2 text-[10px]">
+                    <div class="flex items-start gap-2">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="mt-0.5"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+                        <span>WA: 0857-0454-4399</span>
+                    </div>
+                    <div class="flex items-start gap-2">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="mt-0.5"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
+                        <div>
+                            <span class="font-bold">BCA: 1801419769</span><br>
+                            <span>A.n Rizky Dwi Wahyuni</span>
+                        </div>
+                    </div>
+                    <div class="flex items-start gap-2">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="mt-0.5"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                        <span class="leading-tight">Lingk Gentengan, Kel. Singonegaran, Kab. Banyuwangi</span>
+                    </div>
+                </div>
+
+                <div class="mt-8 text-center">
+                    <div class="border-2 border-black inline-block px-4 py-1 font-bold text-[12px] mb-3 uppercase">
+                        SUKSES / LUNAS
+                    </div>
+                    <p class="text-[8px] opacity-60 leading-relaxed italic uppercase">
+                        Terima kasih telah menggunakan ZELLPAY<br>
+                        --- BUKTI PEMBAYARAN SAH ---
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let items = [
+            { name: 'PDAM', price: 64000 }
+        ];
+
+        let autoID = "";
+        let autoDate = "";
+        let autoTime = "";
+
+        function generateNewID() {
+            const now = new Date();
+            const year = now.getFullYear().toString().slice(-2);
+            const month = (now.getMonth() + 1).toString().padStart(2, '0');
+            const day = now.getDate().toString().padStart(2, '0');
+            const hours = now.getHours().toString().padStart(2, '0');
+            const mins = now.getMinutes().toString().padStart(2, '0');
+            const secs = now.getSeconds().toString().padStart(2, '0');
+
+            // Format: ZP + TglBlnThn + JamMntDtk
+            autoID = `ZP${day}${month}${year}${hours}${mins}${secs}`;
+            autoDate = `${day}/${month}/20${year}`;
+            autoTime = `${hours}:${mins}:${secs}`;
+
+            document.getElementById('displayTrxId').textContent = autoID;
+            document.getElementById('displayTime').textContent = `${autoDate} ${autoTime}`;
+            updatePreview();
+        }
+
+        function formatIDR(num) {
+            return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(num);
+        }
+
+        function addItem() {
+            items.push({ name: '', price: 0 });
+            renderForm();
+        }
+
+        function removeItem(index) {
+            items.splice(index, 1);
+            renderForm();
+        }
+
+        function updateItem(index, field, value) {
+            if (field === 'price') items[index][field] = parseInt(value) || 0;
+            else items[index][field] = value;
+            updatePreview();
+        }
+
+        function renderForm() {
+            const container = document.getElementById('items-container');
+            container.innerHTML = '';
+            items.forEach((item, index) => {
+                const div = document.createElement('div');
+                div.className = 'flex gap-2 items-center bg-slate-50 p-3 rounded-xl border border-slate-200';
+                div.innerHTML = `
+                    <input type="text" placeholder="Nama Layanan (Contoh: LISTRIK)" value="${item.name}" oninput="updateItem(${index}, 'name', this.value)" class="flex-1 bg-transparent text-sm font-semibold outline-none px-2 uppercase">
+                    <div class="flex items-center gap-1 border-l border-slate-200 pl-3">
+                        <span class="text-[10px] font-bold text-slate-400">Rp</span>
+                        <input type="number" placeholder="0" value="${item.price}" oninput="updateItem(${index}, 'price', this.value)" class="w-24 bg-transparent text-sm font-bold outline-none text-right">
+                    </div>
+                    <button onclick="removeItem(${index})" class="text-slate-300 hover:text-red-500 p-1 transition"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>`;
+                container.appendChild(div);
+            });
+            updatePreview();
+        }
+
+        function updatePreview() {
+            document.getElementById('prevTrxId').textContent = autoID;
+            document.getElementById('prevDate').textContent = autoDate;
+            document.getElementById('prevTime').textContent = autoTime;
+
+            const prevItems = document.getElementById('prevItems');
+            prevItems.innerHTML = '';
+            let total = 0;
+            items.forEach(item => {
+                total += item.price;
+                const div = document.createElement('div');
+                div.className = 'flex justify-between uppercase';
+                div.innerHTML = `<span>${item.name || '---'}</span><span class="font-bold">${formatIDR(item.price)}</span>`;
+                prevItems.appendChild(div);
+            });
+            document.getElementById('prevTotal').textContent = formatIDR(total);
+        }
+
+        async function downloadAsImage() {
+            const btn = document.getElementById('downloadBtn');
+            const loader = document.getElementById('btnLoader');
+            const text = document.getElementById('btnText');
+            const receipt = document.getElementById('receipt-preview');
+
+            btn.disabled = true;
+            loader.style.display = 'block';
+            text.textContent = 'MENGUNDUH...';
+
+            try {
+                const canvas = await html2canvas(receipt, {
+                    scale: 3, 
+                    backgroundColor: "#ffffff",
+                    useCORS: true
+                });
+                
+                const image = canvas.toDataURL("image/png", 1.0);
+                const link = document.createElement('a');
+                link.download = `ZELLPAY-${autoID}.png`;
+                link.href = image;
+                link.click();
+                
+                text.textContent = 'BERHASIL!';
+                // Generate ID baru setelah sukses simpan untuk transaksi berikutnya
+                setTimeout(() => { generateNewID(); renderForm(); }, 1500);
+            } catch (err) {
+                console.error(err);
+                alert('Gagal menyimpan gambar.');
+                text.textContent = 'COBA LAGI';
+            } finally {
+                btn.disabled = false;
+                loader.style.display = 'none';
+                setTimeout(() => { text.textContent = 'SIMPAN & BAGIKAN (PNG)'; }, 2000);
+            }
+        }
+
+        // Jalankan ID Generator pertama kali
+        generateNewID();
+        renderForm();
+    </script>
+</body>
+</html>
